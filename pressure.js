@@ -305,6 +305,53 @@ function main() {
         }
     };
 
+    // Add updateFromPressure function
+    window.updateFromPressure = function(pressure) {
+        pressure = Math.min(20, Math.max(1, Number(pressure)));
+        const depth = (pressure - 1) * 10;
+        
+        // Update UI elements
+        const depthSlider = document.getElementById('depthSlider');
+        const depthValue = document.getElementById('depthValue');
+        const pressureValue = document.getElementById('pressureValue');
+        
+        if (depthSlider) depthSlider.value = depth;
+        if (depthValue) depthValue.value = depth.toFixed(1);
+        if (pressureValue) pressureValue.value = pressure.toFixed(2);
+        
+        // Update current depth and pressure
+        currentDepth = depth;
+        window.updatePressure(pressure);
+    };
+
+    // Add updateInitialVolume function
+    window.updateInitialVolume = function(name, value) {
+        // Convert value to number and ensure it's positive
+        value = Math.max(0, Number(value));
+        
+        // Update the initial volumes
+        window.initialVolumes[name] = value;
+        
+        // Reinitialize the model with new volumes
+        const segments = {
+            lungs: new Segment("lungs", window.initialVolumes.lungs, true),
+            nasopharynx: new Segment("nasopharynx", window.initialVolumes.nasopharynx, true),
+            sinuses: new Segment("sinuses", window.initialVolumes.sinuses, false),
+            middle_ear: new Segment("middle_ear", window.initialVolumes.middle_ear, false)
+        };
+
+        segments.lungs.connect(segments.nasopharynx);
+        segments.nasopharynx.connect(segments.sinuses);
+        segments.nasopharynx.connect(segments.middle_ear);
+
+        // Update the model
+        window.currentModel = new Model(Object.values(segments));
+        
+        // Update the display with current pressure
+        const pressure = 1 + (currentDepth / 10);
+        window.updatePressure(pressure);
+    };
+
     // Initialize
     window.updateSpeed(1);
     window.updateFromDepth(0);
