@@ -71,19 +71,19 @@
         <div class="slider-container">
             <span>Depth:</span>
             <input type="range" 
-                   id="depthSlider"
+                   id="depthSlider" 
                    min="0" 
                    max="190" 
                    step="0.1" 
                    value="0" 
-                   oninput="updateFromDepth(this.value)">
+                   oninput="window.updateFromDepth(this.value)">
             <input type="number" 
                    id="depthValue" 
                    value="0" 
                    step="0.1" 
                    min="0" 
                    max="190" 
-                   oninput="updateFromDepth(this.value)">
+                   oninput="window.updateFromDepth(this.value)">
             <span>m</span>
             <span>(Pressure:</span>
             <input type="number" 
@@ -92,7 +92,7 @@
                    step="1.00" 
                    min="1" 
                    max="20" 
-                   oninput="updateFromPressure(this.value)">
+                   oninput="window.updateFromPressure(this.value)">
             <span>atm)</span>
         </div>
         
@@ -112,70 +112,40 @@
                 <label class="compressible">Lungs:</label>
                 <input type="number" 
                        value="5000" 
-                       min="1" 
-                       step="10"
-                       oninput="updateInitialVolume('lungs', this.value)">
+                       min="0" 
+                       step="100" 
+                       oninput="window.updateInitialVolume('lungs', this.value)">
                 <span>ml</span>
             </div>
             <div class="volume-input">
                 <label class="compressible">Nasopharynx:</label>
                 <input type="number" 
                        value="250" 
-                       min="1" 
-                       step="1"
-                       oninput="updateInitialVolume('nasopharynx', this.value)">
+                       min="0" 
+                       step="10" 
+                       oninput="window.updateInitialVolume('nasopharynx', this.value)">
                 <span>ml</span>
             </div>
             <div class="volume-input">
                 <label class="incompressible">Sinuses:</label>
                 <input type="number" 
                        value="90" 
-                       min="1" 
-                       step="1"
-                       oninput="updateInitialVolume('sinuses', this.value)">
+                       min="0" 
+                       step="1" 
+                       oninput="window.updateInitialVolume('sinuses', this.value)">
                 <span>ml</span>
             </div>
             <div class="volume-input">
                 <label class="incompressible">Middle Ear:</label>
                 <input type="number" 
                        value="1" 
-                       min="0.1" 
-                       step="0.1"
-                       oninput="updateInitialVolume('middleEar', this.value)">
+                       min="0" 
+                       step="0.1" 
+                       oninput="window.updateInitialVolume('middle_ear', this.value)">
                 <span>ml</span>
             </div>
         </div>
     </div>
     <script src="pressure.js"></script>
-    <script>
-        function updateFromDepth(depth) {
-            depth = Math.min(190, Math.max(0, depth)); // Clamp between 0 and 190
-            const pressure = 1 + (depth / 10);
-            
-            // Update all controls
-            document.getElementById('depthSlider').value = depth;
-            document.getElementById('depthValue').value = Number(depth).toFixed(1);
-            document.getElementById('pressureValue').value = pressure.toFixed(2);
-            
-            // Update the model
-            updatePressure(pressure);
-        }
-
-        function updateFromPressure(pressure) {
-            pressure = Math.min(20, Math.max(1, pressure)); // Clamp between 1 and 20
-            const depth = (pressure - 1) * 10;
-            
-            // Update all controls
-            document.getElementById('depthSlider').value = depth;
-            document.getElementById('depthValue').value = depth.toFixed(1);
-            document.getElementById('pressureValue').value = Number(pressure).toFixed(2);
-            
-            // Update the model
-            updatePressure(pressure);
-        }
-
-        // Initial update
-        updateFromDepth(0);
-    </script>
 </body>
 </html> 

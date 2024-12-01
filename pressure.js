@@ -13,9 +13,10 @@ class Segment {
 }
 
 class Checkpoint {
-    constructor(volumes, pressure) {
+    constructor(volumes, pressure, model) {
         this.volumes = volumes;
         this.pressure = pressure;
+        this.model = model;
     }
 
     pprint() {
@@ -61,7 +62,7 @@ class Checkpoint {
         ctx.beginPath();
         ctx.strokeStyle = '#999';
         ctx.lineWidth = 2;
-        currentModel.segments.forEach(segment => {
+        this.model.segments.forEach(segment => {
             segment.connections.forEach(connectedSegment => {
                 if (segment.name < connectedSegment.name) {
                     const from = circles[segment.name];
@@ -112,7 +113,7 @@ class Model {
     getInitialCheckpoint() {
         const volumes = {};
         this.segments.forEach(s => volumes[s.name] = s.initialVolume);
-        return new Checkpoint(volumes, 1);
+        return new Checkpoint(volumes, 1, this);
     }
 
     getVolumesAtPressure(pressure, checkpoint = null) {
@@ -146,15 +147,8 @@ class Model {
             }
         });
 
-        return new Checkpoint(result, pressure);
+        return new Checkpoint(result, pressure, this);
     }
-}
-
-// Global variable to hold the model
-let currentModel;
-
-function updatePressure(pressure) {
-    currentModel.getVolumesAtPressure(Number(pressure)).pprint();
 }
 
 function main() {
@@ -169,93 +163,91 @@ function main() {
         };
     }
 
-    // Function to update URL with current volumes
-    function updateURL(segments) {
-        const params = new URLSearchParams();
-        Object.entries(segments).forEach(([name, segment]) => {
-            params.set(name, segment.initialVolume);
-        });
+    // Store initialVolumes in window so it's accessible
+    window.initialVolumes = getInitialVolumes();
+
+    // Add function to update URL and reinitialize model
+    window.updateInitialVolume = function(name, value) {
+        window.initialVolumes[name] = Number(value);
         
-        // Update URL without reloading the page
-        const newURL = `${window.location.pathname}?${params.toString()}`;
-        window.history.pushState({ path: newURL }, '', newURL);
+        // Update URL
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set(name, value);
+        window.history.replaceState({}, '', `${window.location.pathname}?${urlParams}`);
+        
+        // Reinitialize model with new volumes
+        initializeModel();
     }
 
-    // Initialize segments with values from URL or defaults
-    const initialVolumes = getInitialVolumes();
-    const segments = {
-        lungs: new Segment("lungs", initialVolumes.lungs, true),
-        nasopharynx: new Segment("nasopharynx", initialVolumes.nasopharynx, true),
-        sinuses: new Segment("sinuses", initialVolumes.sinuses, false),
-        middle_ear: new Segment("middle_ear", initialVolumes.middle_ear, false)
-    };
+    // Function to initialize/reinitialize the model
+    function initializeModel() {
+        const segments = {
+            lungs: new Segment("lungs", window.initialVolumes.lungs, true),
+            nasopharynx: new Segment("nasopharynx", window.initialVolumes.nasopharynx, true),
+            sinuses: new Segment("sinuses", window.initialVolumes.sinuses, false),
+            middle_ear: new Segment("middle_ear", window.initialVolumes.middle_ear, false)
+        };
 
-    segments.lungs.connect(segments.nasopharynx);
-    segments.nasopharynx.connect(segments.sinuses);
-    segments.nasopharynx.connect(segments.middle_ear);
+        segments.lungs.connect(segments.nasopharynx);
+        segments.nasopharynx.connect(segments.sinuses);
+        segments.nasopharynx.connect(segments.middle_ear);
 
-    currentModel = new Model(Object.values(segments));
+        window.currentModel = new Model(Object.values(segments));
+        
+        // Update display with current pressure
+        const pressureValue = document.getElementById('pressureValue').value || 1;
+        window.updatePressure(pressureValue);
+    }
 
-    // Update initial volume inputs to match URL values
-    Object.entries(initialVolumes).forEach(([name, volume]) => {
-        const input = document.querySelector(`input[oninput*="${name}"]`);
-        if (input) input.value = volume;
-    });
+    function updateTotalVolumeDisplays(checkpoint) {
+        // Calculate initial total
+        const initialTotal = Object.values(window.initialVolumes)
+            .reduce((sum, vol) => sum + vol, 0);
+        
+        // Calculate current total
+        const currentTotal = Object.values(checkpoint.volumes)
+            .reduce((sum, vol) => sum + vol, 0);
 
-    window.updateInitialVolume = function(segmentName, volume) {
-        volume = Number(volume);
-        if (isNaN(volume) || volume <= 0) return;
-        
-        segments[segmentName].initialVolume = volume;
-        currentModel = new Model(Object.values(segments));
-        
-        // Update URL with new volumes
-        updateURL(segments);
-        
-        // Get current pressure from depth value
-        const pressure = 1 + (Number(document.getElementById('depthValue').value) / 10);
-        
-        // Update visualization and volumes
-        const checkpoint = currentModel.getVolumesAtPressure(pressure);
-        checkpoint.pprint();
-        updateTotalVolumeDisplays(checkpoint);
+        // Update the display
+        document.getElementById('initialTotalVolumeValue').textContent = initialTotal.toFixed(1);
+        document.getElementById('totalVolumeValue').textContent = currentTotal.toFixed(1);
     }
 
     window.updatePressure = function(pressure) {
-        const checkpoint = currentModel.getVolumesAtPressure(Number(pressure));
+        const checkpoint = window.currentModel.getVolumesAtPressure(Number(pressure));
         checkpoint.pprint();
         updateTotalVolumeDisplays(checkpoint);
-    }
+    };
 
-    // Initial render
-    updatePressure(1);
+    window.updateFromDepth = function(depth) {
+        depth = Math.min(190, Math.max(0, depth));
+        const pressure = 1 + (depth / 10);
+        
+        document.getElementById('depthSlider').value = depth;
+        document.getElementById('depthValue').value = Number(depth).toFixed(1);
+        document.getElementById('pressureValue').value = pressure.toFixed(2);
+        
+        window.updatePressure(pressure);
+    };
+
+    window.updateFromPressure = function(pressure) {
+        pressure = Math.min(20, Math.max(1, pressure));
+        const depth = (pressure - 1) * 10;
+        
+        document.getElementById('depthSlider').value = depth;
+        document.getElementById('depthValue').value = depth.toFixed(1);
+        document.getElementById('pressureValue').value = Number(pressure).toFixed(2);
+        
+        window.updatePressure(pressure);
+    };
+
+    // Initialize the model for the first time
+    initializeModel();
 }
 
-// Run main when the document is loaded
-document.addEventListener('DOMContentLoaded', main);
-
-function updateFromDepth(depth) {
-    depth = Math.min(190, Math.max(0, depth)); // Clamp between 0 and 190 (gives max pressure of 20 atm)
-    const pressure = 1 + (depth / 10);
-    
-    // Update all controls
-    document.getElementById('depthSlider').value = depth;
-    document.getElementById('depthValue').value = Number(depth).toFixed(1);
-    document.getElementById('pressureValue').value = pressure.toFixed(2);
-    
-    // Update the model
-    updatePressure(pressure);
-}
-
-function updateFromPressure(pressure) {
-    pressure = Math.min(20, Math.max(1, pressure)); // Clamp between 1 and 20
-    const depth = (pressure - 1) * 10;
-    
-    // Update all controls
-    document.getElementById('depthSlider').value = depth;
-    document.getElementById('depthValue').value = depth.toFixed(1);
-    document.getElementById('pressureValue').value = Number(pressure).toFixed(2);
-    
-    // Update the model
-    updatePressure(pressure);
+// Make sure main runs after DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', main);
+} else {
+    main();
 }
