@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pressure Model</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        .slider-container, .volume-controls {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+        }
+        input[type="number"] {
+            width: 70px;
+            padding: 2px 5px;
+        }
+        .volume-controls {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .volume-input {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 10px;
+        }
+        .volume-input label {
+            font-size: 0.9em;
+        }
+        .compressible {
+            color: #d00;
+        }
+        .incompressible {
+            color: #666;
+        }
+        .info-container {
+            margin: 10px 0;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .total-volume {
+            display: inline-block;
+            padding: 5px 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+        }
+        .volume-display {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="pressureCanvas" width="1000" height="600"></canvas>
+        <div class="slider-container">
+            <span>Depth:</span>
+            <input type="range" 
+                   id="depthSlider"
+                   min="0" 
+                   max="190" 
+                   step="0.1" 
+                   value="0" 
+                   oninput="updateFromDepth(this.value)">
+            <input type="number" 
+                   id="depthValue" 
+                   value="0" 
+                   step="0.1" 
+                   min="0" 
+                   max="190" 
+                   oninput="updateFromDepth(this.value)">
+            <span>m</span>
+            <span>(Pressure:</span>
+            <input type="number" 
+                   id="pressureValue" 
+                   value="1.00" 
+                   step="1.00" 
+                   min="1" 
+                   max="20" 
+                   oninput="updateFromPressure(this.value)">
+            <span>atm)</span>
+        </div>
+        
+        <div class="info-container">
+            <div class="volume-display">
+                <div class="total-volume">
+                    Initial Total Volume: <span id="initialTotalVolumeValue">5341.0</span> ml
+                </div>
+                <div class="total-volume">
+                    Current Total Volume: <span id="totalVolumeValue">5341.0</span> ml
+                </div>
+            </div>
+        </div>
+
+        <div class="volume-controls">
+            <div class="volume-input">
+                <label class="compressible">Lungs:</label>
+                <input type="number" 
+                       value="5000" 
+                       min="1" 
+                       step="10"
+                       oninput="updateInitialVolume('lungs', this.value)">
+                <span>ml</span>
+            </div>
+            <div class="volume-input">
+                <label class="compressible">Nasopharynx:</label>
+                <input type="number" 
+                       value="250" 
+                       min="1" 
+                       step="1"
+                       oninput="updateInitialVolume('nasopharynx', this.value)">
+                <span>ml</span>
+            </div>
+            <div class="volume-input">
+                <label class="incompressible">Sinuses:</label>
+                <input type="number" 
+                       value="90" 
+                       min="1" 
+                       step="1"
+                       oninput="updateInitialVolume('sinuses', this.value)">
+                <span>ml</span>
+            </div>
+            <div class="volume-input">
+                <label class="incompressible">Middle Ear:</label>
+                <input type="number" 
+                       value="1" 
+                       min="0.1" 
+                       step="0.1"
+                       oninput="updateInitialVolume('middleEar', this.value)">
+                <span>ml</span>
+            </div>
+        </div>
+    </div>
+    <script src="pressure.js"></script>
+    <script>
+        function updateFromDepth(depth) {
+            depth = Math.min(190, Math.max(0, depth)); // Clamp between 0 and 190
+            const pressure = 1 + (depth / 10);
+            
+            // Update all controls
+            document.getElementById('depthSlider').value = depth;
+            document.getElementById('depthValue').value = Number(depth).toFixed(1);
+            document.getElementById('pressureValue').value = pressure.toFixed(2);
+            
+            // Update the model
+            updatePressure(pressure);
+        }
+
+        function updateFromPressure(pressure) {
+            pressure = Math.min(20, Math.max(1, pressure)); // Clamp between 1 and 20
+            const depth = (pressure - 1) * 10;
+            
+            // Update all controls
+            document.getElementById('depthSlider').value = depth;
+            document.getElementById('depthValue').value = depth.toFixed(1);
+            document.getElementById('pressureValue').value = Number(pressure).toFixed(2);
+            
+            // Update the model
+            updatePressure(pressure);
+        }
+
+        // Initial update
+        updateFromDepth(0);
+    </script>
+</body>
+</html> 
