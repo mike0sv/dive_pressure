@@ -163,23 +163,10 @@ function main() {
         };
     }
 
-    // Store initialVolumes in window so it's accessible
+    // Store initialVolumes in window
     window.initialVolumes = getInitialVolumes();
 
-    // Add function to update URL and reinitialize model
-    window.updateInitialVolume = function(name, value) {
-        window.initialVolumes[name] = Number(value);
-        
-        // Update URL
-        const urlParams = new URLSearchParams(window.location.search);
-        urlParams.set(name, value);
-        window.history.replaceState({}, '', `${window.location.pathname}?${urlParams}`);
-        
-        // Reinitialize model with new volumes
-        initializeModel();
-    }
-
-    // Function to initialize/reinitialize the model
+    // Initialize the model first
     function initializeModel() {
         const segments = {
             lungs: new Segment("lungs", window.initialVolumes.lungs, true),
@@ -193,12 +180,19 @@ function main() {
         segments.nasopharynx.connect(segments.middle_ear);
 
         window.currentModel = new Model(Object.values(segments));
-        
-        // Update display with current pressure
-        const pressureValue = document.getElementById('pressureValue').value || 1;
-        window.updatePressure(pressureValue);
     }
 
+    // Initialize model before defining functions
+    initializeModel();
+
+    // Define updatePressure first
+    window.updatePressure = function(pressure) {
+        const checkpoint = window.currentModel.getVolumesAtPressure(Number(pressure));
+        checkpoint.pprint();
+        updateTotalVolumeDisplays(checkpoint);
+    };
+
+    // Define updateTotalVolumeDisplays
     function updateTotalVolumeDisplays(checkpoint) {
         // Calculate initial total
         const initialTotal = Object.values(window.initialVolumes)
@@ -208,41 +202,112 @@ function main() {
         const currentTotal = Object.values(checkpoint.volumes)
             .reduce((sum, vol) => sum + vol, 0);
 
-        // Update the display
-        document.getElementById('initialTotalVolumeValue').textContent = initialTotal.toFixed(1);
-        document.getElementById('totalVolumeValue').textContent = currentTotal.toFixed(1);
+        // Update the display elements if they exist
+        const initialElement = document.getElementById('initialTotalVolumeValue');
+        const currentElement = document.getElementById('totalVolumeValue');
+        
+        if (initialElement) {
+            initialElement.textContent = initialTotal.toFixed(1);
+        }
+        if (currentElement) {
+            currentElement.textContent = currentTotal.toFixed(1);
+        }
     }
 
-    window.updatePressure = function(pressure) {
-        const checkpoint = window.currentModel.getVolumesAtPressure(Number(pressure));
-        checkpoint.pprint();
-        updateTotalVolumeDisplays(checkpoint);
-    };
+    // Simulation variables
+    let isPlaying = false;
+    let simulationSpeed = 1;
+    let lastTimestamp = null;
+    let animationFrameId = null;
+    let currentDepth = 0;
 
     window.updateFromDepth = function(depth) {
-        depth = Math.min(190, Math.max(0, depth));
+        depth = Math.min(190, Math.max(0, Number(depth)));
+        currentDepth = depth; // Update the tracked depth
         const pressure = 1 + (depth / 10);
         
-        document.getElementById('depthSlider').value = depth;
-        document.getElementById('depthValue').value = Number(depth).toFixed(1);
-        document.getElementById('pressureValue').value = pressure.toFixed(2);
+        // Update UI elements
+        const depthSlider = document.getElementById('depthSlider');
+        const depthValue = document.getElementById('depthValue');
+        const pressureValue = document.getElementById('pressureValue');
+        
+        if (depthSlider) depthSlider.value = depth;
+        if (depthValue) depthValue.value = depth.toFixed(1);
+        if (pressureValue) pressureValue.value = pressure.toFixed(2);
         
         window.updatePressure(pressure);
     };
 
-    window.updateFromPressure = function(pressure) {
-        pressure = Math.min(20, Math.max(1, pressure));
-        const depth = (pressure - 1) * 10;
+    // Animation function
+    function animate(timestamp) {
+        if (!isPlaying) return;
+
+        if (lastTimestamp === null) {
+            lastTimestamp = timestamp;
+        }
+
+        const deltaTime = (timestamp - lastTimestamp) / 1000;
+        currentDepth += simulationSpeed * deltaTime;
         
-        document.getElementById('depthSlider').value = depth;
-        document.getElementById('depthValue').value = depth.toFixed(1);
-        document.getElementById('pressureValue').value = Number(pressure).toFixed(2);
+        if (currentDepth >= 190) {
+            currentDepth = 190;
+            window.togglePlay();
+        }
         
-        window.updatePressure(pressure);
+        window.updateFromDepth(currentDepth);
+        
+        lastTimestamp = timestamp;
+        if (isPlaying) {
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+
+    window.togglePlay = function() {
+        isPlaying = !isPlaying;
+        const playButton = document.getElementById('playButton');
+        
+        if (isPlaying) {
+            // Start animation
+            playButton.textContent = 'Pause';
+            playButton.classList.add('playing');
+            lastTimestamp = null;
+            animationFrameId = requestAnimationFrame(animate);
+        } else {
+            // Stop animation
+            playButton.textContent = 'Play';
+            playButton.classList.remove('playing');
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
     };
 
-    // Initialize the model for the first time
-    initializeModel();
+    window.resetSimulation = function() {
+        // Stop simulation if playing
+        if (isPlaying) {
+            window.togglePlay();
+        }
+        // Reset depth to 0
+        currentDepth = 0;
+        window.updateFromDepth(0);
+        lastTimestamp = null;
+    };
+
+    window.updateSpeed = function(speed) {
+        simulationSpeed = Math.max(0.1, Math.min(10, Number(speed)));
+        document.getElementById('speedInput').value = simulationSpeed;
+    };
+
+    window.updateFromManualDepth = function(depth) {
+        if (!isPlaying) {  // Only allow manual updates when not playing
+            window.updateFromDepth(depth);
+        }
+    };
+
+    // Initialize
+    window.updateSpeed(1);
+    window.updateFromDepth(0);
 }
 
 // Make sure main runs after DOM is loaded

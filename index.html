@@ -9,8 +9,10 @@
             text-align: center;
         }
         canvas {
+            display: block;
+            margin: 0 auto;
+            margin-bottom: 20px;
             border: 1px solid #ccc;
-            margin: 20px 0;
         }
         .slider-container, .volume-controls {
             width: 100%;
@@ -63,11 +65,60 @@
             justify-content: center;
             gap: 20px;
         }
+        .controls-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 20px auto;
+            justify-content: center;
+            padding: 10px;
+        }
+        .speed-input {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .speed-input input {
+            width: 60px;
+        }
+        button {
+            padding: 8px 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #e8e8e8;
+        }
+        #playButton.playing {
+            background-color: #ffecec;
+        }
+        .slider-container {
+            margin: 20px auto;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <canvas id="pressureCanvas" width="1000" height="600"></canvas>
+        <canvas id="pressureCanvas" width="800" height="600"></canvas>
+        <div class="controls-container">
+            <button id="playButton" onclick="window.togglePlay()">Play</button>
+            <button id="resetButton" onclick="window.resetSimulation()">Reset</button>
+            <div class="speed-input">
+                <label for="speedInput">Speed:</label>
+                <input type="number" 
+                       id="speedInput" 
+                       value="1" 
+                       min="0.1" 
+                       max="10" 
+                       step="0.1" 
+                       oninput="window.updateSpeed(this.value)">
+                <span>m/s</span>
+            </div>
+        </div>
         <div class="slider-container">
             <span>Depth:</span>
             <input type="range" 
@@ -76,14 +127,14 @@
                    max="190" 
                    step="0.1" 
                    value="0" 
-                   oninput="window.updateFromDepth(this.value)">
+                   oninput="window.updateFromManualDepth(this.value)">
             <input type="number" 
                    id="depthValue" 
                    value="0" 
                    step="0.1" 
                    min="0" 
                    max="190" 
-                   oninput="window.updateFromDepth(this.value)">
+                   oninput="window.updateFromManualDepth(this.value)">
             <span>m</span>
             <span>(Pressure:</span>
             <input type="number" 
@@ -99,10 +150,10 @@
         <div class="info-container">
             <div class="volume-display">
                 <div class="total-volume">
-                    Initial Total Volume: <span id="initialTotalVolumeValue">5341.0</span> ml
+                    Initial Total Volume: <span id="initialTotalVolumeValue">0.0</span> ml
                 </div>
                 <div class="total-volume">
-                    Current Total Volume: <span id="totalVolumeValue">5341.0</span> ml
+                    Current Total Volume: <span id="totalVolumeValue">0.0</span> ml
                 </div>
             </div>
         </div>
